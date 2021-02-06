@@ -1,0 +1,10 @@
+targets_file:
+  targets.txt
+response_timeout:
+  10
+logstash_endpoints:
+  - http://172.17.0.1:5044
+use_tls:
+  False
+log_dead:
+  False
