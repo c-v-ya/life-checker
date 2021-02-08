@@ -17,6 +17,7 @@ async def run():
         for target in targets:
             host_name, port = target.split(':')
             if is_cidr(host_name):
+                # посмотри пожалуйста директорию docs
                 for host_ip in ipaddress.IPv4Network(host_name):
                     task = asyncio.create_task(
                         check(str(host_ip), port, session)
