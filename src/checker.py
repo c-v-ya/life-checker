@@ -1,22 +1,27 @@
-import re
+import asyncio
+
+from aiohttp import ClientTimeout, ClientSession
 
 from src import config
-from src.logger import send_logs
+
+TIMEOUT = ClientTimeout(total=config.RESPONSE_TIMEOUT)
 
 
-async def head(url, session):
+async def head(url):
     """Performs HEAD request to url and returns response headers or error"""
     try:
-        async with session.head(url, ssl=config.USE_TLS) as response:
-            return response.headers
+        async with ClientSession(timeout=TIMEOUT) as session:
+            async with session.head(url, ssl=config.USE_TLS) as response:
+                return response.headers
 
     except Exception as err:
         return err
 
 
-async def check(addr: str, port: int, session):
+async def check(addr: str, port: int):
     """Performs request and checks if addr is alive"""
-    response = await head(f'http://{addr}:{port}', session)
+    response = await head(f'http://{addr}:{port}')
+
     result_dict = {
         'host': addr,
         'port': port,
@@ -46,9 +51,4 @@ async def check(addr: str, port: int, session):
         ]
     }
 
-    await send_logs(result_dict)
-
-
-def is_cidr(host_name):
-    """Checks if host_name is a CIDR notation"""
-    return re.match(r'\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}/\d{1,2}.*', host_name)
+    return result_dict

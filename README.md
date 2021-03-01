@@ -20,6 +20,9 @@ input {
 
 ## Usage
 
+Note that if you run this script with `targets.txt` without modifying - it will consume around 1.5Gb RAM.
+And if a subnet is even wider than x.x.0.0/16 - the consumption will increase even more.
+
 ### Shell
 
 ```shell
