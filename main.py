@@ -1,6 +1,7 @@
 import asyncio
-import contextlib
 import ipaddress
+
+from aiohttp import ClientSession, ClientTimeout
 
 from src import config
 from src.checker import check
@@ -8,24 +9,15 @@ from src.logger import send_logs
 
 BUFFER = []  # buffering results before sending them
 BUFFER_LIMIT = 10000
-
-
-async def worker(queue: asyncio.Queue):
-    while True:
-        result = await queue.get()
-        BUFFER.append(result)
-        if len(BUFFER) >= BUFFER_LIMIT:
-            await send_logs(BUFFER)
-            BUFFER.clear()
-
-        queue.task_done()
+TIMEOUT = ClientTimeout(total=config.RESPONSE_TIMEOUT)
 
 
 async def run():
     with open(config.TARGETS_FILE, 'r') as f:
         targets = f.read().splitlines()
 
-    tasks = asyncio.Queue()
+    tasks = []
+    session = ClientSession(timeout=TIMEOUT)
 
     for target in targets:
         host_name, port = target.split(':')
@@ -35,19 +27,18 @@ async def run():
             cidr = [host_name]
 
         for host_ip in cidr:
-            task = asyncio.create_task(
-                check(str(host_ip), port)
+            tasks.append(
+                asyncio.create_task(check(str(host_ip), port, session))
             )
-            await tasks.put(task)
 
-    workers = [asyncio.create_task(worker(tasks)) for _ in range(10)]
-    await tasks.join()
+    for task in tasks:
+        result = await task
+        BUFFER.append(result)
+        if len(BUFFER) >= BUFFER_LIMIT:
+            await send_logs(BUFFER)
+            BUFFER.clear()
 
-    for task in workers:
-        task.cancel()
-        with contextlib.suppress(asyncio.CancelledError):
-            await task
-
+    await session.close()
     await send_logs(BUFFER)  # sending last batch of results
 
 
